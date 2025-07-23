@@ -6,6 +6,7 @@
 library(here)
 library(tidyverse)
 library(ggpubr)
+library(MARSS)
 
 load(here("dungeness","output",
           "dungeness_chinook_best_model.RData"))
@@ -295,10 +296,323 @@ ggsave(here("visualizations",
             "coho_covariates_estimates.jpeg"), width = 16, height = 16)
 
 
+# anomaly models
+
+#Chinook dungeness best model
+
+load(here("dungeness","output",
+          "dungeness_chinook_best_model_anomaly.RData"))
+ci_dungeness_chinook_best_model_anomaly <- tidy(dungeness_chinook_best_model_anomaly)
+dungeness_chinook_plot_anomaly <- ggplot(ci_dungeness_chinook_best_model_anomaly[c(34:38),], 
+                                 aes(x = c("Season", 
+                                           "Flow\n difference",
+                                           "Temperature\n difference",
+                                           "Hatchery\ndifference, day", 
+                                           "Hatchery\ndifference, night"),
+                                     y = estimate, 
+                                     ymin = conf.low, 
+                                     ymax = conf.up)) +
+  geom_pointrange(size = 1, linewidth = 1.5, alpha = 0.7) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(x = "", y =""
+       # title = "Dungeness River, Chinook sub yearlings"
+  )+
+  theme_classic() +
+  theme(axis.title.y=element_text(size=24, family = "Sans", 
+                                  margin = margin(t = 10, r = 0, b = 0, l = 10)),
+        axis.title.x=element_text(size=24, family = "Sans", 
+                                  margin = margin(t = 15, r = 0, b = 0, l = 10)),
+        axis.text.y = element_text(size = 24, family = "Sans"),
+        axis.text.x=element_text(size=24, family = "Sans")) +
+  scale_x_discrete(#guide = guide_axis(n.dodge=3),
+    limits = c("Temperature\n difference", "Season",
+               "Flow\n difference","Hatchery\ndifference, night","Hatchery\ndifference, day"
+               
+    )) + 
+  # scale_y_continuous(breaks = c(-0.2,-0.1,0,0.1, 0.2), limits = c(-0.295,0.295))+
+  coord_flip()+
+  scale_y_continuous(breaks = c(-0.3,-0.2,-0.1,0,0.1,0.2,0.3), limits = c(-0.35,0.35))+
+  geom_rect(aes(xmin = 3.5, xmax = 5.5, ymin = -0.34, ymax = 0.34), col = "cadetblue", alpha = 0.0, fill = "cadetblue")+
+  geom_text(aes(x = 0.7, y = 0.3, label = "Dungeness"), size = 10)
 
 
+dungeness_chinook_plot_anomaly
+
+# puyallup chinook best model
+
+load(here("puyallup","output",
+          "puyallup_chinook_best_model_anomaly.RData"))
+ci_puyallup_chinook_best_model_anomaly <- tidy(puyallup_chinook_best_model)
+
+puyallup_chinook_plot_anomaly <- ggplot(ci_puyallup_chinook_best_model_anomaly[c(39:44),], 
+                                 aes(x = c("Flow\n anomaly",
+                                           "Temperature\n anomaly",
+                                           "Season", 
+                                           "Flow\n difference",
+                                           "Hatchery\ndifference, day", 
+                                           "Hatchery\ndifference, night"),
+                                     y = estimate, 
+                                     ymin = conf.low, 
+                                     ymax = conf.up)) +
+  geom_pointrange(size = 1, linewidth = 1.5, alpha = 0.7) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(x = "", y =""
+       # title = "Puyallup River, Chinook sub yearlings"
+  )+
+  theme_classic() +
+  theme(axis.title.y=element_text(size=24, family = "Sans", 
+                                  margin = margin(t = 10, r = 0, b = 0, l = 10)),
+        axis.title.x=element_text(size=24, family = "Sans", 
+                                  margin = margin(t = 15, r = 0, b = 0, l = 10)),
+        axis.text.y = element_text(size = 24, family = "Sans"),
+        axis.text.x=element_text(size=24, family = "Sans")) +
+  scale_x_discrete(#guide = guide_axis(n.dodge=3),
+    limits = c("Flow\n anomaly","Season","Temperature\n anomaly","Flow\n difference",
+               "Hatchery\ndifference, day","Hatchery\ndifference, night"
+               
+    )) + 
+  # scale_y_continuous(breaks = c(-0.2,-0.1,0,0.1, 0.2), limits = c(-0.295,0.295))+
+  coord_flip()+
+  scale_y_continuous(breaks = c(-0.3,-0.2,-0.1,0,0.1,0.2,0.3), limits = c(-0.35,0.35))+
+  geom_rect(aes(xmin = 4.5, xmax = 6.5, ymin = -0.34, ymax = 0.34), col = "cadetblue", alpha = 0.0, fill = "cadetblue")+
+  geom_text(aes(x = 0.7, y = 0.3, label = "Puyallup"), size = 10)
+
+puyallup_chinook_plot_anomaly
+
+#Skagit chinook best model
+
+load(here("skagit","output",
+          "skagit_chinook_best_model_anomaly.RData"))
+
+ci_skagit_chinook_best_model_anomaly <- tidy(skagit_chinook_best_model)
+
+skagit_chinook_plot_anomaly <- ggplot(ci_skagit_chinook_best_model_anomaly[c(27:28),], 
+                                 aes(x = c("Season", 
+                                           "Hatchery\ndifference"),
+                                     y = estimate, 
+                                     ymin = conf.low, 
+                                     ymax = conf.up)) +
+  geom_pointrange(size = 1, linewidth = 1.5, alpha = 0.7) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(x = "", y =""
+       # title = "Skagit River, Chinook sub yearlings"
+  )+
+  theme_classic() +
+  theme(axis.title.y=element_text(size=24, family = "Sans", 
+                                  margin = margin(t = 10, r = 0, b = 0, l = 10)),
+        axis.title.x=element_text(size=24, family = "Sans", 
+                                  margin = margin(t = 15, r = 0, b = 0, l = 10)),
+        axis.text.y = element_text(size = 24, family = "Sans"),
+        axis.text.x=element_text(size=24, family = "Sans")) +
+  scale_x_discrete(#guide = guide_axis(n.dodge=3),
+    limits = c("Season",
+               "Hatchery\ndifference"
+               
+    )) + 
+  # scale_y_continuous(breaks = c(-0.2,-0.1,0,0.1, 0.2), limits = c(-0.295,0.295))+
+  coord_flip()+
+  scale_y_continuous(breaks = c(-0.3,-0.2,-0.1,0,0.1,0.2,0.3), limits = c(-0.35,0.35))+
+  geom_rect(aes(xmin = 1.5, xmax = 2.5, ymin = -0.34, ymax = 0.34), col = "cadetblue", alpha = 0.0, fill = "cadetblue")+
+  geom_text(aes(x = 0.7, y = 0.3, label = "Skagit"), size = 10)
+
+skagit_chinook_plot_anomaly
+
+ggpubr::ggarrange(dungeness_chinook_plot_anomaly, puyallup_chinook_plot_anomaly, skagit_chinook_plot_anomaly,
+                  labels = c("a", "b", "c"), ncol = 1, nrow = 3, font.label = list(size = 28),
+                  common.legend = TRUE, legend = "right",align = "hv",
+                  widths = c(1, 1, 1), heights = c(0.9,1.1,0.6))
+
+ggsave(here("visualizations",
+            "output",
+            "chinook_covariates_estimates_anomaly.jpeg"), width = 16, height = 16)
+
+#coho
+
+#dungeness coho
+
+load(here("dungeness","output",
+          "dungeness_coho_best_model_anomaly_night.RData"))
+
+ci_dungeness_coho_best_model_anomaly_night <- tidy(dungeness_coho_best_model_anomaly_night)
 
 
+dungeness_coho_plot_anomaly_night <- ggplot(ci_dungeness_coho_best_model_anomaly_night[c(18:20),], 
+                                 aes(x = c("Flow\n anomaly",
+                                           "Season", 
+                                           "Flow\n difference"),
+                                     y = estimate, 
+                                     ymin = conf.low, 
+                                     ymax = conf.up)) +
+  geom_pointrange(size = 1, linewidth = 1.5, alpha = 0.7) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(x = "", y =""
+       # title = "Dungeness River, Coho sub yearlings"
+  )+
+  theme_classic() +
+  theme(axis.title.y=element_text(size=24, family = "Sans", 
+                                  margin = margin(t = 10, r = 0, b = 0, l = 10)),
+        axis.title.x=element_text(size=24, family = "Sans", 
+                                  margin = margin(t = 15, r = 0, b = 0, l = 10)),
+        axis.text.y = element_text(size = 24, family = "Sans"),
+        axis.text.x=element_text(size=24, family = "Sans")) +
+  scale_x_discrete(#guide = guide_axis(n.dodge=3),
+    limits = c("Flow\n anomaly","Flow\n difference", "Season"
+               
+               
+    )) + 
+  # scale_y_continuous(breaks = c(-0.2,-0.1,0,0.1, 0.2), limits = c(-0.295,0.295))+
+  coord_flip()+
+  scale_y_continuous(breaks = c(-0.3,-0.2,-0.1,0,0.1,0.2,0.3), limits = c(-0.35,0.35))+
+  # geom_rect(aes(xmin = 2.5, xmax = 3.5, ymin = -0.34, ymax = 0.34), col = "cadetblue", alpha = 0.0, fill = "cadetblue")+
+  geom_text(aes(x = 0.7, y = 0.3, label = "Dungeness"), size = 10)
+
+dungeness_coho_plot_anomaly_night
+
+#puyallup coho
+
+load(here("puyallup","output",
+          "puyallup_coho_best_model_anomaly.RData"))
+
+ci_puyallup_coho_best_model_anomaly <- tidy(puyallup_coho_best_model)
+
+puyallup_coho_plot_anomaly <- ggplot(ci_puyallup_coho_best_model_anomaly[c(40:45),], 
+                                 aes(x = c("Flow\n anomaly",
+                                           "Temperature\n anomaly",
+                                           "Season", 
+                                           "Flow\n difference",
+                                           "Hatchery\ndifference, day", 
+                                           "Hatchery\ndifference, night"),
+                                     y = estimate, 
+                                     ymin = conf.low, 
+                                     ymax = conf.up)) +
+  geom_pointrange(size = 1, linewidth = 1.5, alpha = 0.7) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(x = "", y =""
+       # title = "Puyallup River, Coho sub yearlings"
+  )+
+  theme_classic() +
+  theme(axis.title.y=element_text(size=24, family = "Sans", 
+                                  margin = margin(t = 10, r = 0, b = 0, l = 10)),
+        axis.title.x=element_text(size=24, family = "Sans", 
+                                  margin = margin(t = 15, r = 0, b = 0, l = 10)),
+        axis.text.y = element_text(size = 24, family = "Sans"),
+        axis.text.x=element_text(size=24, family = "Sans")) +
+  scale_x_discrete(#guide = guide_axis(n.dodge=3),
+    limits = c("Flow\n anomaly","Temperature\n anomaly","Season",
+               
+               "Hatchery\ndifference, night","Hatchery\ndifference, day", "Flow\n difference"
+               
+    )) + 
+  # scale_y_continuous(breaks = c(-0.2,-0.1,0,0.1, 0.2), limits = c(-0.295,0.295))+
+  coord_flip()+
+  scale_y_continuous(breaks = c(-0.3,-0.2,-0.1,0,0.1,0.2,0.3), limits = c(-0.35,0.35))+
+  geom_rect(aes(xmin = 3.5, xmax = 5.5, ymin = -0.34, ymax = 0.34), col = "cadetblue", alpha = 0.0, fill = "cadetblue")+
+  geom_text(aes(x = 0.7, y = 0.3, label = "Puyallup"), size = 10)
+
+puyallup_coho_plot_anomaly
+
+#skagit coho
+
+load(here("skagit","output",
+          "skagit_coho_best_model_anomaly.RData"))
 
 
+ci_skagit_coho_best_model_anomaly <- tidy(skagit_coho_best_model)
+
+skagit_coho_plot_anomaly <- ggplot(ci_skagit_coho_best_model_anomaly[c(27:29),], 
+                                 aes(x = c("Flow\n anomaly",
+                                           "Season", 
+                                           "Hatchery\ndifference"),
+                                     y = estimate, 
+                                     ymin = conf.low, 
+                                     ymax = conf.up)) +
+  geom_pointrange(size = 1, linewidth = 1.5, alpha = 0.7) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(x = "", y =""
+       # title = "Skagit River, Coho sub yearlings"
+  )+
+  theme_classic() +
+  theme(axis.title.y=element_text(size=24, family = "Sans", 
+                                  margin = margin(t = 10, r = 0, b = 0, l = 10)),
+        axis.title.x=element_text(size=24, family = "Sans", 
+                                  margin = margin(t = 15, r = 0, b = 0, l = 10)),
+        axis.text.y = element_text(size = 24, family = "Sans"),
+        axis.text.x=element_text(size=24, family = "Sans")) +
+  scale_x_discrete(#guide = guide_axis(n.dodge=3),
+    limits = c("Flow\n anomaly",
+               "Season", 
+               "Hatchery\ndifference"
+               
+    )) + 
+  # scale_y_continuous(breaks = c(-0.2,-0.1,0,0.1, 0.2), limits = c(-0.295,0.295))+
+  coord_flip()+
+  scale_y_continuous(breaks = c(-0.3,-0.2,-0.1,0,0.1,0.2,0.3), limits = c(-0.35,0.35))+
+  geom_rect(aes(xmin = 2.5, xmax = 3.5, ymin = -0.34, ymax = 0.34), col = "cadetblue", alpha = 0.0, fill = "cadetblue")+
+  geom_text(aes(x = 0.7, y = 0.3, label = "Skagit"), size = 10)
+
+skagit_coho_plot_anomaly
+
+ggpubr::ggarrange(dungeness_coho_plot_anomaly_night, puyallup_coho_plot_anomaly, 
+                  skagit_coho_plot_anomaly, 
+                  labels = c("a", "b", "c"), ncol = 1, nrow = 3, 
+                  font.label = list(size = 28),
+                  common.legend = TRUE, legend = "right",
+                  widths = c(1, 1, 1), heights = c(0.7,1,0.6))
+
+ggsave(here("visualizations",
+            "output",
+            "coho_covariates_estimates_anomaly.jpeg"), width = 16, height = 16)
+
+
+load(here("dungeness","output",
+          "dungeness_coho_best_model_anomaly_night.RData"))
+
+ci_dungeness_coho_2best_model_anomaly_night <- tidy(dungeness_coho_2best_model_anomaly_night)
+
+
+dungeness_coho_plot_anomaly_night2 <- ggplot(ci_dungeness_coho_2best_model_anomaly_night[c(18:21),], 
+                                            aes(x = c("Flow\n anomaly",
+                                                      "Season", 
+                                                      "Flow\n difference",
+                                                      "Hatchery\n difference"),
+                                                y = estimate, 
+                                                ymin = conf.low, 
+                                                ymax = conf.up)) +
+  geom_pointrange(size = 1, linewidth = 1.5, alpha = 0.7) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(x = "", y =""
+       # title = "Dungeness River, Coho sub yearlings"
+  )+
+  theme_classic() +
+  theme(axis.title.y=element_text(size=24, family = "Sans", 
+                                  margin = margin(t = 10, r = 0, b = 0, l = 10)),
+        axis.title.x=element_text(size=24, family = "Sans", 
+                                  margin = margin(t = 15, r = 0, b = 0, l = 10)),
+        axis.text.y = element_text(size = 24, family = "Sans"),
+        axis.text.x=element_text(size=24, family = "Sans")) +
+  scale_x_discrete(#guide = guide_axis(n.dodge=3),
+    limits = c("Flow\n anomaly",
+               "Hatchery\n difference",
+               "Flow\n difference", "Season"
+               
+               
+    )) + 
+  # scale_y_continuous(breaks = c(-0.2,-0.1,0,0.1, 0.2), limits = c(-0.295,0.295))+
+  coord_flip()+
+  scale_y_continuous(breaks = c(-0.3,-0.2,-0.1,0,0.1,0.2,0.3), limits = c(-0.35,0.35))+
+  geom_rect(aes(xmin = 1.5, xmax = 2.5, ymin = -0.34, ymax = 0.34), col = "cadetblue", alpha = 0.0, fill = "cadetblue")+
+  geom_text(aes(x = 0.7, y = 0.3, label = "Dungeness"), size = 10)
+
+dungeness_coho_plot_anomaly_night2
+
+ggpubr::ggarrange(dungeness_coho_plot_anomaly_night2, puyallup_coho_plot_anomaly, 
+                  skagit_coho_plot_anomaly, 
+                  labels = c("a", "b", "c"), ncol = 1, nrow = 3, 
+                  font.label = list(size = 28),
+                  common.legend = TRUE, legend = "right", align = "hv",
+                  widths = c(1, 1, 1), heights = c(0.8,1,0.6))
+
+ggsave(here("visualizations",
+            "output",
+            "coho_covariates_estimates_anomaly2.jpeg"), width = 16, height = 16)
 

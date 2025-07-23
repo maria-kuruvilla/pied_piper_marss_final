@@ -47,7 +47,7 @@ data_day_night <- data_day_night %>%
 
 coho_median <- data_day_night %>% 
   group_by(year, daytime_category) %>% 
-  select(year,coho1_proportion,doy) %>%
+  dplyr::select(year,coho1_proportion,doy) %>%
   summarise(coho_median_doy = doy[which.min(abs(coho1_proportion - 0.5))])
 
 data_day_night <- left_join(data_day_night,coho_median,by = c("year","daytime_category"))
@@ -1122,5 +1122,788 @@ autoplot(dungeness_coho_best_model_night, plot.type = "std.model.resids.ytT") +
         axis.title.y = element_text(size = 14))  
 
 ggsave(here("dungeness","output","coho1_dungeness_residuals_night.png"), width = 8, height = 6, units = "in", dpi = 300)  
+
+
+
+# anomaly models
+
+data_day_night_anomaly <- read.csv(here("data","dungeness_anomaly.csv"))
+
+glimpse(data_day_night_anomaly)
+
+data_day_night_anomaly <- data_day_night_anomaly %>%
+  filter(doy > 100, doy < 200) %>%
+  group_by(year, daytime_category) %>% 
+  mutate(coho1_wild_perhour_cumsum = cumsum(ifelse(is.na(coho1_wild_perhour),
+                                                   0,
+                                                   coho1_wild_perhour))) %>% 
+  mutate(coho1_proportion = coho1_wild_perhour_cumsum/
+           sum(coho1_wild_perhour,na.rm = TRUE))
+#calculate the median day of migration for each year (day of year that 0.5 proportion of fish have passed)
+
+# make column for median day of migration - day of year and call it season
+
+coho_median <- data_day_night_anomaly %>% 
+  group_by(year, daytime_category) %>% 
+  dplyr::select(year,coho1_proportion,doy) %>%
+  summarise(coho_median_doy = doy[which.min(abs(coho1_proportion - 0.5))])
+
+data_day_night_anomaly <- left_join(data_day_night_anomaly,coho_median,by = c("year","daytime_category"))
+
+#calculate the difference between the median day of migration and the day of year
+
+data_day_night_anomaly <- data_day_night_anomaly %>%
+  mutate(season = coho_median_doy - doy)
+
+covariates_coho1_anomaly <- arrange(data_day_night_anomaly,doy) %>%
+  filter(year != 2015 & year != 2016 & doy >120 & doy <= 160) %>%
+  dplyr::select(year,doy, daytime_category, flow_anomaly,
+                temp_anomaly, season, 
+                coho1_hatchery_perhour_diff) %>%
+  pivot_wider(names_from = c(year, daytime_category), 
+              values_from = c(flow_anomaly, temp_anomaly, season, 
+                              coho1_hatchery_perhour_diff)) %>%
+  column_to_rownames(var = "doy") %>%
+  as.matrix() %>%
+  t()
+
+num_years = 2020-2005-1
+num_rows = num_years*2
+total_covariates = dim(covariates_coho1_anomaly)[1]
+covariate_num = total_covariates/num_rows
+
+#scale and center flow and lunar phase
+for(i in (1):(num_rows*2)){
+  if(sum(covariates_coho1_anomaly[i,]) != 0){
+    print(rownames(covariates_coho1_anomaly)[i])
+    covariates_coho1_anomaly[i,] = scale(covariates_coho1_anomaly[i,],
+                                 center = TRUE, scale= TRUE)[,1]
+  }
+}
+
+for(i in (num_rows*2 + 1):(total_covariates)){
+  if(sum(covariates_coho1_anomaly[i,]) != 0){
+    print(rownames(covariates_coho1_anomaly)[i])
+    covariates_coho1_anomaly[i,] = scale(covariates_coho1_anomaly[i,],
+                                 center = FALSE, scale= TRUE)[,1]
+  }
+}
+
+#subset response variable
+subset_coho_summer_perhour <- arrange(data_day_night,doy) %>%
+  filter(year != 2015 & year != 2016 & doy > 120 & doy <= 160) %>%
+  mutate(log.value = log(coho1_wild_perhour + 1)) %>%
+  dplyr::select(log.value,year,doy,daytime_category) %>%
+  pivot_wider(names_from = c(year, daytime_category), values_from = log.value) %>%
+  column_to_rownames(var = "doy") %>%
+  as.matrix() %>%
+  t()
+
+for(i in 1:dim(subset_coho_summer_perhour)[1]){
+  subset_coho_summer_perhour[i,] = scale(subset_coho_summer_perhour[i,])[,1]
+}
+
+
+nyears = num_years*2
+c = NULL
+fit.model = c(list(c= c), mod_list(nyears,0,0,FALSE,FALSE))
+fit_equal_q_coho <- MARSS(subset_coho_summer_perhour, model=fit.model, silent = TRUE, method = "BFGS",
+                          control=list(maxit=2000))
+fit_equal_q_coho$AICc
+
+fit.model = c(list(c= c), mod_list(nyears,0,0,FALSE,TRUE))
+fit_unequal_q_coho <- MARSS(subset_coho_summer_perhour, model=fit.model, silent = TRUE, method = "BFGS",
+                            control=list(maxit=2000))
+fit_unequal_q_coho$AICc
+
+df_errors_coho <- data.frame(Error_structure = c("Equal","Unequal"), 
+                             AICc = c(fit_equal_q_coho$AICc,fit_unequal_q_coho$AICc))
+
+
+data_day_night_anomaly %>% 
+  ungroup() %>%
+  filter(year != 2015 & year != 2016 & doy > 120 & doy <= 160) %>%
+  dplyr::select(season,  temp_anomaly, flow_anomaly) %>%
+  GGally::ggpairs(aes(alpha = 0.2))
+
+ggsave(here("dungeness","output","coho_covariates_anomaly_correlation.png"),width = 10, height = 10)
+
+
+
+
+num_rows = num_years*2
+list_combinations <- get_covariate_combinations(1:4)
+out.tab_anomaly_coho <- NULL
+out_riv_coho <- NULL
+fits_anomaly_coho <- list()
+for(i in 1:length(list_combinations)){
+  
+  covariate_number <- length(list_combinations[[i]])
+  covariates <- list_combinations[[i]]
+  print(covariates)
+  c = NULL
+  name = NULL
+  season = 0
+  temp_anomaly = 0
+  flow_anomaly = 0
+  hatchery = 0
+  for(j in covariates){
+    if(j == 1){
+      k = 1
+      flow_anomaly =1
+    }
+    else if(j==2){
+      k = 2
+      temp_anomaly = 1
+    }
+    else if(j==3){
+      k = 3
+      season = 1
+    }
+    else if(j==4){
+      k = 4
+      hatchery = 1
+    }
+    
+    
+    c = rbind(c,covariates_coho1_anomaly[((1+(k-1)*num_rows):(k*num_rows)),])
+    name_long = rownames(covariates_coho1_anomaly)[1+(k-1)*num_rows]
+    name = paste(name, substr(name_long,1,nchar(name_long)-9))
+    
+  }
+  # print(c)
+  
+  print(name)
+  c_num <- length(covariates)
+  
+  if(k==4){
+    has_hatchery = 1
+    c_num <- length(covariates)
+    fit.model = c(list(c= c), mod_list(num_rows,c_num,has_hatchery, FALSE, FALSE))
+  } else{
+    has_hatchery = 0
+    c_num <- length(covariates)
+    fit.model = c(list(c= c), mod_list(num_rows,c_num,has_hatchery, FALSE, FALSE))
+  }
+  fit <- MARSS(subset_coho_summer_perhour, model=fit.model, silent = TRUE, method = "BFGS",
+               control=list(maxit=2000))
+  
+  
+  out=data.frame(c=name, season = season, 
+                 temp_anomaly = temp_anomaly, flow_anomaly = flow_anomaly,
+                 hatchery = hatchery,
+                 logLik=fit$logLik, AICc=fit$AICc, num.param=fit$num.params,
+                 num.iter=fit$numIter, converged=!fit$convergence,
+                 stringsAsFactors = FALSE)
+  print(out)
+  out_riv_coho <- rbind(out,out_riv_coho)
+  #save the estimates of the covariates in dataframe
+  out2 = data.frame(season = ifelse(season==1, fit$par$U[which(covariates == 3),], NA),
+                    temp_anomaly = ifelse(temp_anomaly==1, fit$par$U[which(covariates == 2),], NA),
+                    flow_anomaly = ifelse(flow_anomaly == 1, fit$par$U[which(covariates == 1),], NA),
+                    hatchery_day = ifelse(hatchery == 1, fit$par$U["day",], NA),
+                    hatchery_night = ifelse(hatchery == 1, fit$par$U["night",], NA),
+                    AICc=fit$AICc)
+  out.tab_anomaly_coho=rbind(out.tab_anomaly_coho,out2)
+  fits_anomaly_coho=c(fits_anomaly_coho,list(fit))
+  
+  
+}
+
+out.tab_anomaly_coho$deltaAICc <- out.tab_anomaly_coho$AICc - min(out.tab_anomaly_coho$AICc)
+min.AICc <- order(out.tab_anomaly_coho$AICc)
+out.tab_anomaly_coho.ordered <- out.tab_anomaly_coho[min.AICc, ]
+out.tab_anomaly_coho.ordered
+
+write.csv(out.tab_anomaly_coho.ordered, 
+          file = here("dungeness",
+                      "output","model_selection_dungenss_coho_anomaly.csv"))
+
+#best model
+
+dungeness_coho_best_model_anomaly <- fits_anomaly_coho[[which.min(sapply(fits_anomaly_coho, function(x) x$AICc))]]
+
+#save
+
+save(dungeness_coho_best_model_anomaly, file = here("dungeness",
+                                                  "output","dungeness_coho_best_model_anomaly.RData"))
+
+#ci
+tidy(dungeness_coho_best_model_anomaly)
+
+autoplot(dungeness_coho_best_model_anomaly)
+
+# residuals for day have pattern. need to do only with night values
+
+#relative importance
+
+fit.model = c(mod_list(num_rows,0,0, FALSE, FALSE))
+fit <- MARSS(subset_chinook_summer_perhour, model=fit.model, silent = TRUE, method = "BFGS",
+             control=list(maxit=2000))
+name = "None"
+season = 0
+temp_anomaly = 0
+flow_anomaly = 0
+hatchery = 0
+
+
+
+out=data.frame(c=name, season = season, 
+               temp_anomaly = temp_anomaly, flow_anomaly = flow_anomaly,
+               hatchery = hatchery,
+               logLik=fit$logLik, AICc=fit$AICc, num.param=fit$num.params,
+               num.iter=fit$numIter, converged=!fit$convergence,
+               stringsAsFactors = FALSE)
+out_riv_coho <- rbind(out,out_riv_coho)
+
+# out_riv$deltaAICc <- NULL
+out_riv_coho$rel.LL <- NULL
+out_riv_coho$weights <- NULL
+
+# out_riv=rbind(out_riv,out)
+fits_anomaly_coho=c(fits_anomaly_coho,list(fit))
+
+weights <- akaike.weights(out_riv_coho$AICc)
+
+out_riv_coho$deltaAICc <- weights$deltaAIC
+out_riv_coho$rel.LL <- weights$rel.LL
+out_riv_coho$weights <- weights$weights
+
+
+min.AICc <- order(out_riv_coho$AICc)
+out_riv_coho.ordered <- out_riv_coho[min.AICc, ]
+out_riv_coho.ordered
+
+out_riv_coho.ordered$cumulative_weights <- cumsum(out_riv_coho.ordered$weights)
+
+relative_importance_season <- sum(out_riv_coho$weights[out_riv_coho$season==1])
+relative_importance_temp_anomaly <- sum(out_riv_coho$weights[out_riv_coho$temp_anomaly==1])
+relative_importance_flow_anomaly <- sum(out_riv_coho$weights[out_riv_coho$flow_anomaly==1])
+relative_importance_hatchery <- sum(out_riv_coho$weights[out_riv_coho$hatchery==1])
+
+riv_anomaly_coho <- data.frame(variable = c("season",
+                                           "temperature anomaly",
+                                           "flow anomaly",
+                                           "hatchery"),
+                              relative_importance = c(relative_importance_season,
+                                                      relative_importance_temp_anomaly,
+                                                      relative_importance_flow_anomaly,
+                                                      relative_importance_hatchery))
+#round to 2 decimal places
+
+riv_anomaly_coho$relative_importance <- round(riv_anomaly_coho$relative_importance, 2)
+
+# order in decreasing order
+
+riv_anomaly_coho <- riv_anomaly_coho[order(riv_anomaly_coho$relative_importance, decreasing = TRUE),]
+
+
+#save
+write.csv(riv_anomaly_coho, 
+          file = here("dungeness",
+                      "output","dungenss_coho_relative_importance_anomaly.csv"))
+
+
+# FIGURES
+
+
+
+
+
+predict_coho1_dungeness_anomaly <- predict(dungeness_coho_best_model_anomaly, type = "ytT", interval = "confidence")
+
+glimpse(predict_coho1_dungeness_anomaly$pred)
+
+
+head(predict_coho1_dungeness_anomaly$pred)
+
+predict_coho1_dungeness_anomaly$pred$trap <- 'screw'
+
+predict_coho1_dungeness_anomaly$pred$year <-  as.numeric(substr(predict_coho1_dungeness_anomaly$pred$.rownames, 
+                                                              1, 4))
+
+predict_coho1_dungeness_anomaly$pred$daynight_category <- ifelse(substr(predict_coho1_dungeness_anomaly$pred$.rownames, 
+                                                                      6, nchar(predict_coho1_dungeness_anomaly$pred$.rownames)) == 'Day', 'day', 'night')
+
+predict_coho1_dungeness_anomaly$pred$doy <- predict_coho1_dungeness_anomaly$pred$t+120
+
+dungeness_covariates_coho1 <- as.data.frame(t(covariates_coho1_anomaly))
+
+dungeness_covariates_coho1$doy <- as.numeric(rownames(dungeness_covariates_coho1))
+
+dungeness_covariates_coho1_long <-  dungeness_covariates_coho1 %>% 
+  dplyr::select(doy, starts_with("coho")) %>%
+  pivot_longer(cols = -c(doy), names_to = c(".value","year","daynight_category"),
+               names_pattern = "(.*)_(.{4})_(.*)") %>%
+  mutate(year = as.numeric(year), trap = 'screw', daynight_category = ifelse(daynight_category == 'Day', 'day', 'night'))
+
+predict_coho1_dungeness_anomaly$pred <- predict_coho1_dungeness_anomaly$pred %>%
+  left_join(dungeness_covariates_coho1_long, by = c("doy","year", "daynight_category", "trap"))
+
+ggplot(data = predict_coho1_dungeness_anomaly$pred)+
+  
+  geom_line(aes(x = doy, y = estimate, color = "wild, predicted"), alpha =0.8)+
+  geom_point(aes(x = doy, y = y, color = "wild, observed"), size = 0.2, alpha = 0.6)+
+  geom_ribbon(aes(x = doy, ymin = `Lo 95`, ymax = `Hi 95`), alpha = 0.2)+
+  geom_line(data = predict_coho1_dungeness_anomaly$pred, aes(x = doy, y = coho1_hatchery_perhour_diff, 
+                                                           color = "hatchery"), alpha =0.5) +
+  facet_wrap(~year+daynight_category, ncol = 4, labeller = label_wrap_gen(multi_line=FALSE))+
+  labs(x = "Day of year", y = "Log(coho salmon per hour)", title = "")+
+  scale_color_manual(name = "", values = c("wild, predicted" = "salmon", "wild, observed" = "salmon", hatchery = "cadetblue"),
+                     guide = guide_legend(override.aes = list(
+                       linetype = c(1,NA,1),
+                       shape = c(NA,19,NA),
+                       size = c(4,2,4))))+
+  scale_y_continuous(breaks = c(-3,0,3))+
+  scale_x_continuous(limit = c(120, 160), breaks = c(130,150))+
+  theme_classic()+
+  theme(legend.position = "bottom",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12),
+        strip.background = element_rect(
+          color="white", fill="white"),
+        strip.text = element_text(size = 10),
+        axis.text.x = element_text(size = 8, angle = 90, hjust = 1),
+        axis.text.y = element_text(size = 8),
+        axis.title.x = element_text(size = 14),
+        axis.title.y = element_text(size = 14))  
+
+ggsave(here("dungeness","output","coho1_dungeness_prediction_w_hatchery_anomaly.png"), width = 6, height = 8, units = "in", dpi = 300)  
+
+
+autoplot(dungeness_coho_best_model_anomaly, plot.type = "std.model.resids.ytT") +
+  geom_point(aes(color = "wild"), size = 1)+
+  labs(x = "Day of year")+
+  scale_color_manual(name = "", values = c("wild" = "salmon"))+
+  theme_classic()+
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 6),
+        strip.background = element_rect(
+          color="white", fill="white"),
+        strip.text = element_text(size = 10),
+        axis.text.x = element_text(size = 8, angle = 90, hjust = 1),
+        axis.text.y = element_text(size = 8),
+        axis.title.x = element_text(size = 14),
+        axis.title.y = element_text(size = 14))  
+
+ggsave(here("dungeness","output","coho1_dungeness_residuals_anomaly.png"), width = 8, height = 6, units = "in", dpi = 300)  
+
+
+
+# only night values
+
+
+covariates_coho1_anomaly_night <- arrange(data_day_night_anomaly,doy) %>%
+  filter(year != 2015 & doy >120 & doy <= 160, daytime_category == "Night") %>%
+  dplyr::select(year,doy, daytime_category, flow_anomaly,
+                temp_anomaly, season, flow_diff, temp_diff,
+                coho1_hatchery_perhour_diff) %>%
+  pivot_wider(names_from = c(year, daytime_category), 
+              values_from = c(flow_anomaly, temp_anomaly, season, flow_diff, temp_diff,
+                              coho1_hatchery_perhour_diff)) %>%
+  column_to_rownames(var = "doy") %>%
+  as.matrix() %>%
+  t()
+
+num_years = 2020-2005
+num_rows = num_years
+total_covariates = dim(covariates_coho1_anomaly_night)[1]
+covariate_num = total_covariates/num_rows
+
+#scale and center flow and lunar phase
+for(i in (1):(num_rows*2)){
+  if(sum(covariates_coho1_anomaly_night[i,]) != 0){
+    print(rownames(covariates_coho1_anomaly_night)[i])
+    covariates_coho1_anomaly_night[i,] = scale(covariates_coho1_anomaly_night[i,],
+                                         center = TRUE, scale= TRUE)[,1]
+  }
+}
+
+for(i in (num_rows*2 + 1):(total_covariates)){
+  if(sum(covariates_coho1_anomaly_night[i,]) != 0){
+    print(rownames(covariates_coho1_anomaly_night)[i])
+    covariates_coho1_anomaly_night[i,] = scale(covariates_coho1_anomaly_night[i,],
+                                         center = FALSE, scale= TRUE)[,1]
+  }
+}
+
+#subset response variable
+subset_coho_summer_perhour_night <- arrange(data_day_night,doy) %>%
+  filter(year != 2015 & doy > 120 & doy <= 160, daytime_category == "Night") %>%
+  mutate(log.value = log(coho1_wild_perhour + 1)) %>%
+  dplyr::select(log.value,year,doy,daytime_category) %>%
+  pivot_wider(names_from = c(year, daytime_category), values_from = log.value) %>%
+  column_to_rownames(var = "doy") %>%
+  as.matrix() %>%
+  t()
+
+for(i in 1:dim(subset_coho_summer_perhour_night)[1]){
+  subset_coho_summer_perhour_night[i,] = scale(subset_coho_summer_perhour_night[i,])[,1]
+}
+
+# no need for this because it will be equal errors
+
+# nyears = num_years
+# c = NULL
+# fit.model = c(list(c= c), mod_list(nyears,0,0,FALSE,FALSE))
+# fit_equal_q_coho <- MARSS(subset_coho_summer_perhour_night, model=fit.model, silent = TRUE, method = "BFGS",
+#                           control=list(maxit=2000))
+# fit_equal_q_coho$AICc
+# 
+# fit.model = c(list(c= c), mod_list(nyears,0,0,FALSE,TRUE))
+# fit_unequal_q_coho <- MARSS(subset_coho_summer_perhour, model=fit.model, silent = TRUE, method = "BFGS",
+#                             control=list(maxit=2000))
+# fit_unequal_q_coho$AICc
+# 
+# df_errors_coho <- data.frame(Error_structure = c("Equal","Unequal"), 
+#                              AICc = c(fit_equal_q_coho$AICc,fit_unequal_q_coho$AICc))
+
+data_day_night_anomaly %>% 
+  ungroup() %>%
+  filter(year != 2015  & doy > 120 & doy <= 160, daytime_category == "Night") %>%
+  dplyr::select(season,  temp_anomaly, flow_anomaly, flow_diff, temp_diff) %>%
+  GGally::ggpairs(aes(alpha = 0.2))+
+  scale_x_continuous(n.breaks = 3)+
+  scale_y_continuous(n.breaks = 3)
+
+ggsave(here("dungeness","output","coho_covariates_anomaly_night_correlation.png"),width = 10, height = 10)
+
+# 
+# 
+# out.tab <- NULL
+# fits <- NULL
+# nyears = num_years*2
+# for(kk in c(1,2,3,5)){
+#   c = covariates_coho1_anomaly_night[((1+(kk-1)*nyears):(kk*nyears)),]
+#   name_long = rownames(covariates_coho1_anomaly_night)[1+(kk-1)*nyears]
+#   name_individual = substr(name_long,1,nchar(name_long)-9)
+#   print(name_individual)
+#   fit.model = c(list(c= c), mod_list(nyears,1,0,FALSE,TRUE))
+#   fit <- MARSS(subset_coho_summer_perhour_night, model=fit.model, silent = TRUE, method = "BFGS",
+#                control=list(maxit=2000))
+#   ci = tidy(fit)
+#   out=data.frame(c=name_individual, Estimate = ci[34,2],
+#                  conf_low = ci[34,4], conf_high = ci[34,5],
+#                  AICc=fit$AICc)
+#   out.tab=rbind(out.tab,out)
+#   fits=c(fits,list(fit))
+# }
+# 
+# out.tab$delta_AICc <- out.tab$AICc  - min(out.tab$AICc)
+# 
+# out.tab <- out.tab[order(out.tab$AICc),]
+# 
+# out.tab
+# write.csv(out.tab, file = here("dungeness","output",
+#                                "correlated_covariates_dungenss_coho_anomaly_night.csv"))
+
+
+num_rows = num_years
+list_combinations <- get_covariate_combinations(1:6)
+out.tab_anomaly_night_coho <- NULL
+out_riv_coho <- NULL
+fits_anomaly_night_coho <- list()
+amount_done <- length(fits_anomaly_night_coho)
+for(i in (amount_done + 1):length(list_combinations)){
+  covariate_number <- length(list_combinations[[i]])
+  covariates <- list_combinations[[i]]
+  print(covariates)
+  c = NULL
+  name = NULL
+  season = 0
+  temp_anomaly = 0
+  flow_anomaly = 0
+  flow_diff = 0
+  temp_diff = 0
+  hatchery = 0
+  for(j in covariates){
+    if(j == 1){
+      k = 1
+      flow_anomaly =1
+    }
+    else if(j==2){
+      k = 2
+      temp_anomaly = 1
+    }
+    else if(j==3){
+      k = 3
+      season = 1
+    }
+    else if(j==4){
+      k = 4
+      flow_diff = 1
+    }
+    else if(j==5){
+      k = 5
+      temp_diff = 1
+    }
+    else if(j==6){
+      k = 6
+      hatchery = 1
+    }
+    
+    
+    c = rbind(c,covariates_coho1_anomaly_night[((1+(k-1)*num_rows):(k*num_rows)),])
+    name_long = rownames(covariates_coho1_anomaly_night)[1+(k-1)*num_rows]
+    name = paste(name, substr(name_long,1,nchar(name_long)-9))
+    
+  }
+  # print(c)
+  
+  print(name)
+  c_num <- length(covariates)
+  
+  if(k==4){
+    has_hatchery = 1
+    c_num <- length(covariates)
+    fit.model = c(list(c= c), mod_list(num_rows,c_num,has_hatchery))
+  } else{
+    has_hatchery = 0
+    c_num <- length(covariates)
+    fit.model = c(list(c= c), mod_list(num_rows,c_num,has_hatchery))
+  }
+  fit <- MARSS(subset_coho_summer_perhour_night, model=fit.model, silent = TRUE, method = "BFGS",
+               control=list(maxit=2000))
+  
+  
+  out=data.frame(c=name, season = season, 
+                 temp_anomaly = temp_anomaly, flow_anomaly = flow_anomaly,
+                 flow_diff = flow_diff, temp_diff = temp_diff,
+                 hatchery = hatchery,
+                 logLik=fit$logLik, AICc=fit$AICc, num.param=fit$num.params,
+                 num.iter=fit$numIter, converged=!fit$convergence,
+                 stringsAsFactors = FALSE)
+  print(out)
+  out_riv_coho <- rbind(out,out_riv_coho)
+  #save the estimates of the covariates in dataframe
+  out2 = data.frame(season = ifelse(season==1, fit$par$U[which(covariates == 3),], NA),
+                    temp_anomaly = ifelse(temp_anomaly==1, fit$par$U[which(covariates == 2),], NA),
+                    flow_anomaly = ifelse(flow_anomaly == 1, fit$par$U[which(covariates == 1),], NA),
+                    flow_diff = ifelse(flow_diff == 1, fit$par$U[which(covariates == 4),], NA),
+                    temp_diff = ifelse(temp_diff == 1, fit$par$U[which(covariates == 5),], NA),
+                    hatchery = ifelse(hatchery == 1, fit$par$U[which(covariates == 6),], NA),
+                    AICc=fit$AICc)
+  out.tab_anomaly_night_coho=rbind(out.tab_anomaly_night_coho,out2)
+  fits_anomaly_night_coho=c(fits_anomaly_night_coho,list(fit))
+  
+  
+}
+
+out.tab_anomaly_night_coho$deltaAICc <- out.tab_anomaly_night_coho$AICc - min(out.tab_anomaly_night_coho$AICc)
+min.AICc <- order(out.tab_anomaly_night_coho$AICc)
+out.tab_anomaly_night_coho.ordered <- out.tab_anomaly_night_coho[min.AICc, ]
+out.tab_anomaly_night_coho.ordered
+
+#round the estimates to 2 decimal places
+
+out.tab_anomaly_night_coho.ordered<- round(out.tab_anomaly_night_coho.ordered, 2)
+
+write.csv(out.tab_anomaly_night_coho.ordered, 
+          file = here("dungeness",
+                      "output","model_selection_dungenss_coho_anomaly_night.csv"))
+
+#best model
+
+dungeness_coho_best_model_anomaly_night <- fits_anomaly_night_coho[[which.min(sapply(fits_anomaly_night_coho, function(x) x$AICc))]]
+
+#save
+
+save(dungeness_coho_best_model_anomaly_night, file = here("dungeness",
+                                                    "output","dungeness_coho_best_model_anomaly_night.RData"))
+######### start here
+#ci
+tidy(dungeness_coho_best_model_anomaly_night)
+
+autoplot(dungeness_coho_best_model_anomaly_night)
+
+
+
+#relative importance
+
+fit.model = c(mod_list(num_rows,0,0))
+fit <- MARSS(subset_coho_summer_perhour_night, model=fit.model, silent = TRUE, method = "BFGS",
+             control=list(maxit=2000))
+name = "None"
+season = 0
+temp_anomaly = 0
+flow_anomaly = 0
+hatchery = 0
+temp_diff = 0
+flow_diff = 0
+
+
+
+out=data.frame(c=name, season = season, 
+               temp_anomaly = temp_anomaly, flow_anomaly = flow_anomaly,
+               flow_diff = flow_diff, temp_diff = temp_diff,
+               hatchery = hatchery,
+               logLik=fit$logLik, AICc=fit$AICc, num.param=fit$num.params,
+               num.iter=fit$numIter, converged=!fit$convergence,
+               stringsAsFactors = FALSE)
+out_riv_coho <- rbind(out,out_riv_coho)
+
+# out_riv$deltaAICc <- NULL
+out_riv_coho$rel.LL <- NULL
+out_riv_coho$weights <- NULL
+
+# out_riv=rbind(out_riv,out)
+fits_anomaly_night_coho=c(fits_anomaly_night_coho,list(fit))
+
+weights <- akaike.weights(out_riv_coho$AICc)
+
+out_riv_coho$deltaAICc <- weights$deltaAIC
+out_riv_coho$rel.LL <- weights$rel.LL
+out_riv_coho$weights <- weights$weights
+
+
+min.AICc <- order(out_riv_coho$AICc)
+out_riv_coho.ordered <- out_riv_coho[min.AICc, ]
+out_riv_coho.ordered
+
+out_riv_coho.ordered$cumulative_weights <- cumsum(out_riv_coho.ordered$weights)
+
+relative_importance_season <- sum(out_riv_coho$weights[out_riv_coho$season==1])
+relative_importance_temp_anomaly <- sum(out_riv_coho$weights[out_riv_coho$temp_anomaly==1])
+relative_importance_flow_anomaly <- sum(out_riv_coho$weights[out_riv_coho$flow_anomaly==1])
+relative_importance_hatchery <- sum(out_riv_coho$weights[out_riv_coho$hatchery==1])
+relative_importance_temp_diff <- sum(out_riv_coho$weights[out_riv_coho$temp_diff==1])
+relative_importance_flow_diff <- sum(out_riv_coho$weights[out_riv_coho$flow_diff==1])
+riv_anomaly_coho <- data.frame(variable = c("season",
+                                            "temperature anomaly",
+                                            "flow anomaly",
+                                            "temperature difference",
+                                            "flow difference",
+                                            "hatchery"),
+                               relative_importance = c(relative_importance_season,
+                                                       relative_importance_temp_anomaly,
+                                                       relative_importance_flow_anomaly,
+                                                       relative_importance_temp_diff,
+                                                       relative_importance_flow_diff,
+                                                       relative_importance_hatchery))
+#round to 2 decimal places
+
+riv_anomaly_coho$relative_importance <- round(riv_anomaly_coho$relative_importance, 2)
+
+# order in decreasing order
+
+riv_anomaly_coho <- riv_anomaly_coho[order(riv_anomaly_coho$relative_importance, decreasing = TRUE),]
+
+riv_anomaly_coho
+
+#save
+write.csv(riv_anomaly_coho, 
+          file = here("dungeness",
+                      "output","dungenss_coho_relative_importance_anomaly_night.csv"))
+
+#plot
+
+
+
+predict_coho1_dungeness_anomaly_night <- predict(dungeness_coho_best_model_anomaly_night, type = "ytT", interval = "confidence")
+
+glimpse(predict_coho1_dungeness_anomaly_night$pred)
+
+
+head(predict_coho1_dungeness_anomaly_night$pred)
+
+predict_coho1_dungeness_anomaly_night$pred$trap <- 'screw'
+
+predict_coho1_dungeness_anomaly_night$pred$year <-  as.numeric(substr(predict_coho1_dungeness_anomaly_night$pred$.rownames, 
+                                                                1, 4))
+
+predict_coho1_dungeness_anomaly_night$pred$daynight_category <- ifelse(substr(predict_coho1_dungeness_anomaly_night$pred$.rownames, 
+                                                                        6, nchar(predict_coho1_dungeness_anomaly_night$pred$.rownames)) == 'Day', 'day', 'night')
+
+predict_coho1_dungeness_anomaly_night$pred$doy <- predict_coho1_dungeness_anomaly_night$pred$t+120
+
+dungeness_covariates_coho1 <- as.data.frame(t(covariates_coho1_anomaly_night))
+
+dungeness_covariates_coho1$doy <- as.numeric(rownames(dungeness_covariates_coho1))
+
+dungeness_covariates_coho1_long <-  dungeness_covariates_coho1 %>% 
+  dplyr::select(doy, starts_with("coho")) %>%
+  pivot_longer(cols = -c(doy), names_to = c(".value","year","daynight_category"),
+               names_pattern = "(.*)_(.{4})_(.*)") %>%
+  mutate(year = as.numeric(year), trap = 'screw', daynight_category = ifelse(daynight_category == 'Day', 'day', 'night'))
+
+predict_coho1_dungeness_anomaly_night$pred <- predict_coho1_dungeness_anomaly_night$pred %>%
+  left_join(dungeness_covariates_coho1_long, by = c("doy","year", "daynight_category", "trap"))
+
+ggplot(data = predict_coho1_dungeness_anomaly_night$pred)+
+  
+  geom_line(aes(x = doy, y = estimate, color = "wild, predicted"), alpha =0.8)+
+  geom_point(aes(x = doy, y = y, color = "wild, observed"), size = 0.2, alpha = 0.6)+
+  geom_ribbon(aes(x = doy, ymin = `Lo 95`, ymax = `Hi 95`), alpha = 0.2)+
+  geom_line(data = predict_coho1_dungeness_anomaly_night$pred, aes(x = doy, y = coho1_hatchery_perhour_diff, 
+                                                             color = "hatchery difference"), alpha =0.5) +
+  facet_wrap(~year+daynight_category, ncol = 3, labeller = label_wrap_gen(multi_line=FALSE))+
+  labs(x = "Day of year", y = "Log (coho salmon per hour)", title = "")+
+  scale_color_manual(name = "", values = c("wild, predicted" = "salmon", "wild, observed" = "salmon", "hatchery difference" = "cadetblue"),
+                     guide = guide_legend(override.aes = list(
+                       linetype = c(1,NA,1),
+                       shape = c(NA,19,NA),
+                       size = c(4,2,4))))+
+  scale_y_continuous(breaks = c(-3,0,3))+
+  scale_x_continuous(limit = c(120, 160), breaks = c(130,150))+
+  theme_classic()+
+  theme(legend.position = "bottom",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12),
+        strip.background = element_rect(
+          color="white", fill="white"),
+        strip.text = element_text(size = 10),
+        axis.text.x = element_text(size = 8, angle = 90, hjust = 1),
+        axis.text.y = element_text(size = 8),
+        axis.title.x = element_text(size = 14),
+        axis.title.y = element_text(size = 14))  
+
+ggsave(here("dungeness","output","coho1_dungeness_prediction_w_hatchery_anomaly_night.png"), width = 6, height = 8, units = "in", dpi = 300)  
+
+
+autoplot(dungeness_coho_best_model_anomaly_night, plot.type = "std.model.resids.ytT") +
+  geom_point(aes(color = "wild"), size = 1)+
+  labs(x = "Day of year")+
+  scale_color_manual(name = "", values = c("wild" = "salmon"))+
+  theme_classic()+
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 6),
+        strip.background = element_rect(
+          color="white", fill="white"),
+        strip.text = element_text(size = 10),
+        axis.text.x = element_text(size = 8, angle = 90, hjust = 1),
+        axis.text.y = element_text(size = 8),
+        axis.title.x = element_text(size = 14),
+        axis.title.y = element_text(size = 14))  
+
+ggsave(here("dungeness","output","coho1_dungeness_residuals_anomaly_night.png"), width = 8, height = 6, units = "in", dpi = 300)  
+
+
+# second best model (with hatchery)
+
+dungeness_coho_2best_model_anomaly_night <- fits_anomaly_night_coho[[49]]
+
+#save
+
+save(dungeness_coho_2best_model_anomaly_night, file = here("dungeness",
+                                                          "output","dungeness_coho_2best_model_anomaly_night.RData"))
+######### start here
+#ci
+tidy(dungeness_coho_2best_model_anomaly_night)
+
+autoplot(dungeness_coho_2best_model_anomaly_night)
+
+predict_coho1_dungeness_anomaly_night <- predict(dungeness_coho_2best_model_anomaly_night, type = "ytT", interval = "confidence")
+
+glimpse(predict_coho1_dungeness_anomaly_night$pred)
+
+ggsave(here("dungeness","output","coho1_dungeness_prediction_w_hatchery_anomaly_night_2best.png"), width = 6, height = 8, units = "in", dpi = 300)  
+
+
+ggsave(here("dungeness","output","coho1_dungeness_prediction_w_hatchery_anomaly_night_2best.png"), width = 6, height = 8, units = "in", dpi = 300)  
+
+
+
 
 
