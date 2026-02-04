@@ -567,6 +567,9 @@ ggsave(here("visualizations",
 load(here("dungeness","output",
           "dungeness_coho_best_model_anomaly_night.RData"))
 
+load(here("dungeness","output",
+          "dungeness_coho_2best_model_anomaly_night.RData"))
+
 ci_dungeness_coho_2best_model_anomaly_night <- tidy(dungeness_coho_2best_model_anomaly_night)
 
 
@@ -615,4 +618,71 @@ ggpubr::ggarrange(dungeness_coho_plot_anomaly_night2, puyallup_coho_plot_anomaly
 ggsave(here("visualizations",
             "output",
             "coho_covariates_estimates_anomaly2.jpeg"), width = 16, height = 16)
+
+
+# make puyallup coho estimate figure wo 2021
+
+
+load(here("puyallup","output",
+          "puyallup_coho_best_model_anomaly_wo_2021.RData"))
+
+ci_puyallup_coho_best_model_anomaly_wo_2021 <- tidy(puyallup_coho_best_model)
+
+puyallup_coho_plot_anomaly_wo_2021 <- ggplot(ci_puyallup_coho_best_model_anomaly_wo_2021[c(38:43),], 
+                                     aes(x = c("Flow\n anomaly",
+                                               "Temperature\n anomaly",
+                                               "Season", 
+                                               "Flow\n difference",
+                                               "Hatchery\ndifference, day", 
+                                               "Hatchery\ndifference, night"),
+                                         y = estimate, 
+                                         ymin = conf.low, 
+                                         ymax = conf.up)) +
+  geom_pointrange(size = 1, linewidth = 1.5, alpha = 0.7) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(x = "", y =""
+       # title = "Puyallup River, Coho sub yearlings"
+  )+
+  theme_classic() +
+  theme(axis.title.y=element_text(size=24, family = "Sans", 
+                                  margin = margin(t = 10, r = 0, b = 0, l = 10)),
+        axis.title.x=element_text(size=24, family = "Sans", 
+                                  margin = margin(t = 15, r = 0, b = 0, l = 10)),
+        axis.text.y = element_text(size = 24, family = "Sans"),
+        axis.text.x=element_text(size=24, family = "Sans")) +
+  scale_x_discrete(#guide = guide_axis(n.dodge=3),
+    limits = c("Flow\n anomaly","Temperature\n anomaly","Season",
+               
+               "Hatchery\ndifference, night","Hatchery\ndifference, day", "Flow\n difference"
+               
+    )) + 
+  # scale_y_continuous(breaks = c(-0.2,-0.1,0,0.1, 0.2), limits = c(-0.295,0.295))+
+  coord_flip()+
+  scale_y_continuous(breaks = c(-0.3,-0.2,-0.1,0,0.1,0.2,0.3), limits = c(-0.35,0.35))+
+  geom_rect(aes(xmin = 3.5, xmax = 5.5, ymin = -0.34, ymax = 0.34), col = "cadetblue", alpha = 0.0, fill = "cadetblue")+
+  geom_text(aes(x = 0.7, y = 0.3, label = "Puyallup"), size = 10)
+
+puyallup_coho_plot_anomaly_wo_2021
+
+ggpubr::ggarrange(dungeness_coho_plot_anomaly_night2, puyallup_coho_plot_anomaly_wo_2021, 
+                  skagit_coho_plot_anomaly, 
+                  labels = c("a", "b", "c"), ncol = 1, nrow = 3, 
+                  font.label = list(size = 28),
+                  common.legend = TRUE, legend = "right", align = "hv",
+                  widths = c(1, 1, 1), heights = c(0.8,1,0.6))
+
+ggsave(here("visualizations",
+            "output",
+            "coho_covariates_estimates_anomaly3_wo_puyallup_2021.jpeg"), 
+       width = 16, height = 16)
+
+puyallup_coho_plot_anomaly_wo_2021
+ggsave(here("visualizations",
+            "output",
+            "puyallup_coho_covariates_estimates_anomaly3_wo_puyallup_2021.jpeg"), 
+       width = 16, height = 6)
+
+
+
+
 

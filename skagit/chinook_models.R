@@ -562,25 +562,31 @@ data_day_night %>%
   filter(doy>150, doy <= 200) %>% 
   ggplot() +
   # geom_line(aes(x = doy, y = resid, group = as.factor(year), col = "temperature \n residuals"),alpha = 0.5) +
-  # geom_line(aes(x = doy, y = temp, group= as.factor(year), col = "temperature"),alpha = 0.5)+
-  # geom_line(aes(x = doy, y = temp_anomaly, group= as.factor(year), col = "temperature \n anomaly"),alpha = 0.5)+
+  geom_line(aes(x = doy, y = temp, group= as.factor(year), col = "temperature"),alpha = 0.5)+
+  geom_line(aes(x = doy, y = temp_anomaly, group= as.factor(year), col = "temperature \n anomaly"),alpha = 0.5)+
   # geom_line(aes(x = doy, y = photoperiod, group = as.factor(year), col = "photoperiod"),
   # linewidth = 2,alpha = 0.7)+
-  # scale_color_manual(name = "",values = c("temperature \n anomaly" = "slategray",
-  #                                         "temperature" = "#B17A79")) +
-  geom_line(aes(x = doy, y = flow, group= as.factor(year), col = "flow"),alpha = 0.5)+
-  geom_line(aes(x = doy, y = flow_anomaly, group= as.factor(year), col = "flow \n anomaly"),alpha = 0.5)+
-  scale_color_manual(name = "",values = c("flow \n anomaly" = "slategray",
-                                          "flow" = "#93BCCD")) +
+  scale_color_manual(name = "",values = c("temperature \n anomaly" = "slategray",
+                                          "temperature" = "#B17A79")) +
+  # geom_line(aes(x = doy, y = flow, group= as.factor(year), col = "flow"),alpha = 0.5)+
+  # geom_line(aes(x = doy, y = flow_anomaly, group= as.factor(year), col = "flow \n anomaly"),alpha = 0.5)+
+  # scale_color_manual(name = "",values = c("flow \n anomaly" = "slategray",
+  #                                         "flow" = "#93BCCD")) +
   # "photoperiod" = "#E8D68A")) +
   theme_classic() +
   labs(x = "Day of Year",
        y = "Value",
-       title = "") +
-  theme(legend.position = "right")
+       title = "Skagit River, Temperature") +
+  theme(legend.position = "right",
+        axis.title = element_text(size = 18),
+        axis.text = element_text(size = 14),
+        title = element_text(size = 18),
+        legend.text = element_text(size = 16))
 
 
 ggsave(here("skagit","output","skagit_flow_anomaly.png"), width = 7, height = 5, units = "in", dpi = 300)  
+
+ggsave(here("skagit","output","skagit_temp_anomaly.png"), width = 7, height = 5, units = "in", dpi = 300)  
 
 
 

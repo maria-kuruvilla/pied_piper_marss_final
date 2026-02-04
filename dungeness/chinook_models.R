@@ -1082,8 +1082,12 @@ data_day_night_anomaly %>%
   theme_classic() +
   labs(x = "Day of Year",
        y = "Value",
-       title = "") +
-  theme(legend.position = "right")
+       title = "Dungeness River, Temperature") +
+  theme(legend.position = "right",
+        axis.title = element_text(size = 18),
+        axis.text = element_text(size = 14),
+        title = element_text(size = 18),
+        legend.text = element_text(size = 16))
 
 ggsave(here("dungeness","output","dungeness_temperature_anomaly.png"), width = 7, height = 5, units = "in", dpi = 300)  
 
@@ -1099,8 +1103,12 @@ data_day_night_anomaly %>%
   theme_classic() +
   labs(x = "Day of Year",
        y = "Value",
-       title = "") +
-  theme(legend.position = "right")
+       title = "Dungeness River, Flow") +
+  theme(legend.position = "right",
+        axis.title = element_text(size = 18),
+        axis.text = element_text(size = 14),
+        title = element_text(size = 18),
+        legend.text = element_text(size = 16))
 
 ggsave(here("dungeness","output","dungeness_flow_anomaly.png"), width = 7, height = 5, units = "in", dpi = 300)
 

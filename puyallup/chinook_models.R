@@ -703,8 +703,12 @@ data %>%
   theme_classic() +
   labs(x = "Day of Year",
        y = "Value",
-       title = "") +
-  theme(legend.position = "right")
+       title = "Puyallup River, Temperature") +
+  theme(legend.position = "right",
+        axis.title = element_text(size = 18),
+        axis.text = element_text(size = 14),
+        title = element_text(size = 18),
+        legend.text = element_text(size = 16))
 
 ggsave(here("puyallup","output","puyallup_temperature_anomaly.png"), width = 7, height = 5, units = "in", dpi = 300)  
 
@@ -720,8 +724,12 @@ data %>%
   theme_classic() +
   labs(x = "Day of Year",
        y = "Value",
-       title = "") +
-  theme(legend.position = "right")
+       title = "Puyallup River, Flow") +
+  theme(legend.position = "right",
+        axis.title = element_text(size = 18),
+        axis.text = element_text(size = 14),
+        title = element_text(size = 18),
+        legend.text = element_text(size = 16))
 
 ggsave(here("puyallup","output","puyallup_flow_anomaly.png"), width = 7, height = 5, units = "in", dpi = 300)
 

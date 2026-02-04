@@ -49,7 +49,7 @@ data <- data %>%
 
 median <- data %>% 
   group_by(year) %>% 
-  select(year,coho1_day_proportion,
+  dplyr::select(year,coho1_day_proportion,
          coho1_night_proportion,
          doy) %>%
   summarise(median_day_doy = doy[which.min(abs(coho1_day_proportion - 0.5))],
@@ -65,7 +65,7 @@ data <- data %>%
 data %>% 
   ungroup() %>%
   filter(doy > 90 & doy < 160) %>%
-  select(flow_day,lunar_phase_day, season_day, resid_day, temp_diff_day, flow_diff_day, 
+  dplyr::select(flow_day,lunar_phase_day, season_day, resid_day, temp_diff_day, flow_diff_day, 
          photo_diff_day,secchi_depth_day) %>%
   GGally::ggpairs(aes(alpha = 0.2))
 
@@ -562,7 +562,7 @@ puyallup_covariates_coho1 <- as.data.frame(t(covariates_coho1_puyallup_w_temp))
 puyallup_covariates_coho1$doy <- as.numeric(rownames(puyallup_covariates_coho1))
 
 puyallup_covariates_coho1_long <-  puyallup_covariates_coho1 %>% 
-  select(doy, starts_with("coho")) %>%
+  dplyr::select(doy, starts_with("coho")) %>%
   pivot_longer(cols = -c(doy), names_to = c(".value","daynight_category","year"),
                names_pattern = "(.*)_(.*)_(.{4})") %>%
   mutate(year = as.numeric(year), trap = 'screw', daynight_category = ifelse(daynight_category == 'day', 'day', 'night'))

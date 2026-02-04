@@ -28,7 +28,7 @@ nhd_carbon <- nhd_hu10[grep("Carbon River", nhd_hu10$gnis_name),]
 #basins
 # data_huc10 <- st_read(here("data","WBD_17_HU2_GDB.gdb"), layer = "WBDHU10")
 
-data_huc10 <- st_read(here("..","..","..","Downloads","WBD_17_HU2_GDB",
+data_huc10 <- st_read(here("data",
                            "WBD_17_HU2_GDB.gdb"), 
                       layer = "WBDHU10")
 
@@ -77,47 +77,47 @@ wa_map <- ggplot() +
   geom_point(aes(x = -122.250, y = 47.196), color = "black", size = 3, fill = "grey",
              alpha = 0.8, shape = 23, label = "trap")+
   geom_point(aes(x =-121.735300, y = 48.533900), color = "orange", size = 2,
-             alpha = 0.8, shape = 16, label = "coho release site")+
+             alpha = 0.5, shape = 16, label = "coho release site")+
   # geom_point(aes(x = -121.746100, y = 48.433400), color = "#9E6767", size = 2,
-             # alpha = 0.8, shape = 15)+
+             # alpha = 0.5, shape = 15)+
   #plot points of hatchery release locations
   #+48.524200, -121.429200
   geom_point(aes(x = -121.429200, y = 48.524200), color = "#464573", size = 2, 
-             alpha = 0.8, shape = 16,label = "chinook release site")+
+             alpha = 0.5, shape = 16,label = "chinook release site")+
   #marblemount hatchery +48.433400, -121.746100
   # geom_point(aes(x = -121.746100, y = 48.433400), color = "#9E6767", size = 2, 
-  #            alpha = 0.8, shape = 15)+
+  #            alpha = 0.5, shape = 15)+
   #release site for chinook +48.387400, -122.366100
   # geom_point(aes(x = -122.366100, y = 48.387400), color = "#464573", size = 2, 
-  #            alpha = 0.8, shape = 16)+
+  #            alpha = 0.5, shape = 16)+
   #chinook release site +48.638400, -121.300000
   geom_point(aes(x = -121.300000, y = 48.638400), color = "#464573", size = 2, 
-             alpha = 0.8, shape = 16)+
+             alpha = 0.5, shape = 16)+
   #coho release site +48.562400, -121.734100
   # geom_point(aes(x = -121.734100, y = 48.562400), color = "orange", size = 2, 
-  #            alpha = 0.8, shape = 16)+
+  #            alpha = 0.5, shape = 16)+
   #chinook release site (+47.976700, -123.110500)
   geom_point(aes(x = -123.110500, y = 47.976700), color = "#464573", size = 2, 
-             alpha = 0.8, shape = 16)+
+             alpha = 0.5, shape = 16)+
   #coho release site +48.150800, -123.133100
   #cohorelease site 48.028385, -123.139695
   geom_point(aes(x = -123.139695, y = 48.028385), color = "orange", size = 2, 
-             alpha = 0.8, shape = 16)+
+             alpha = 0.5, shape = 16)+
   #chinook release site +47.199700, -122.257300
   # geom_point(aes(x = -122.257300, y = 47.199700), color = "#464573", size = 2, 
-  #            alpha = 0.8, shape = 16)+
+  #            alpha = 0.5, shape = 16)+
   #coho relese site +47.214000, -122.340000
   # geom_point(aes(x = -122.340000, y = 47.214000), color = "orange", size = 2, 
-  #            alpha = 0.8, shape = 16)+
+  #            alpha = 0.5, shape = 16)+
   #chinook release site +47.135600, -122.074800
-  geom_point(aes(x = -122.074800, y = 47.135600), color = "#464573", size = 2,
-             alpha = 0.8, shape = 16)+
+  ##geom_point(aes(x = -122.074800, y = 47.135600), color = "#464573", size = 2,
+             ##alpha = 0.5, shape = 16)+
   #chinook release site +47.087200, -122.184300
-  geom_point(aes(x = -122.184300, y = 47.087200), color = "#464573", size = 2, 
-             alpha = 0.8, shape = 16)+
+  geom_point(aes(x = -122.22, y = 47.087200), color = "#464573", size = 2, 
+             alpha = 0.5, shape = 16)+ # changing for visibility
   #coho release site +47.087200, -122.184300
   geom_point(aes(x = -122.184300, y = 47.087200), color = "orange", size = 2, 
-             alpha = 0.8, shape = 16)+
+             alpha = 0.5, shape = 16)+
   #label
   # geom_point(aes(x = -120.2, y = 47.76), color = "orange", size = 2, 
   #            alpha = 0.8, shape = 16)+
@@ -170,22 +170,30 @@ wa_map
 #   121 deg; 57 min W
 
 
-wa_map +
+new_map <- wa_map +
   geom_point(aes(x = -123.128730880501, y = 48.1434051232356), 
-             color = "darkred", size = 3, shape = 8)+
+             color = "darkred", size = 2, shape = 8)+ 
   geom_point(aes(x = -121.246234788845, y = 48.6717922878038),
-             color = "darkred", size = 3, shape = 8)+
+             color = "darkred", size = 2, shape = 8)+
   geom_point(aes(x = -122.22956251685, y = 47.1851011479701),
-             color = "darkred", size = 3, shape = 8)+
+             color = "darkred", size = 2, shape = 8)+
+  geom_point(aes(x = -121.95, y = 46.9333),
+             color = "darkred", size = 2, shape = 8)+
   
+  #remove white space around the plot
+  theme(plot.margin = unit(c(0, 0, 0, 0), "cm"))
   
+ggsave(here("visualizations","output","river_basins_release_map_new_w_env_data_sites.png"), 
+       new_map, width = 10, height = 10, dpi = 300)
 
 
 
 
 
-ggsave(here("output","river_basins_release_map_new_wo_label.png"), 
+ggsave(here("visualizations","output","river_basins_release_map_new_wo_label.png"), 
        wa_map, width = 10, height = 10, dpi = 300)
+
+
 
 
 img_magick2 <- image_read(here("..","pied_piper_MARSS","output",
@@ -243,6 +251,20 @@ trial3 <- wa_map2  +                  # Add plots on top of each other
                              l = 0,  # Left margin
                              unit = "cm"))
 
+wa_map3 <- image_read(here("visualizations",
+                           "output","river_basins_release_map_new_w_env_data_sites_cropped2.png")) %>% 
+  image_ggplot()
+
+trial4 <- wa_map3  +                  # Add plots on top of each other
+  inset_element(img_magick2, left = 0.55, bottom = 0, 
+                right = 1, top = 0.33)+
+  theme(plot.tag = element_text(face = "bold", size = 12),
+        plot.margin = margin(t = 0,  # Top margin
+                             r = 0,  # Right margin
+                             b = 0,  # Bottom margin
+                             l = 0,  # Left margin
+                             unit = "cm"))
+
 manuscript_fig2 <- trial3/fig2 + plot_annotation(tag_levels = "a") &
   theme(plot.tag = element_text(face = "bold", size = 12),
         plot.margin = margin(t = 0,  # Top margin
@@ -275,4 +297,16 @@ manuscript_fig3 <- trial3/fig3 + plot_annotation(tag_levels = "a") &
 
 ggsave(here("output","manuscript_fig1_release_sites_crop_new_w_hatchery_release2.png"), 
        manuscript_fig3, width = 8, height = 8, units = "in",
+       dpi = 300)
+
+manuscript_fig4 <- trial4/fig3 + plot_annotation(tag_levels = "a") &
+  theme(plot.tag = element_text(face = "bold", size = 12),
+        plot.margin = margin(t = 0,  # Top margin
+                             r = 0,  # Right margin
+                             b = 0,  # Bottom margin
+                             l = 0,  # Left margin
+                             unit = "cm"))
+
+ggsave(here("visualizations","output","manuscript_fig1_release_sites_crop_new_w_hatchery_release2_env_sites2.png"), 
+       manuscript_fig4, width = 8, height = 8, units = "in",
        dpi = 300)
